@@ -1,12 +1,16 @@
-from py2neo import Graph
 from py2neo import GraphService
-import pandas as pd
 from textblob import TextBlob
-from flask import Flask, render_template
 import tkinter as tk
 
-gs = GraphService("http://localhost:7474/db/data/",
-                  user="neo4j", password='neo4jj')
+NEO4J_SERVER_LINK = 'http://localhost:7474/db/data/'
+NEO4J_USERNAME = 'neo4j'
+NEO4J_PASSWORD = 'neo4jj'
+WORD_LABEL = 'word'
+RELATIONSHIP_POS_LABEL = 'pos_count'
+RELATIONSHIP_NEG_LABEL = 'neg_count'
+
+gs = GraphService(NEO4J_SERVER_LINK,
+                  user=NEO4J_USERNAME, password=NEO4J_PASSWORD)
 graph = gs.default_graph
 
 window = tk.Tk()
@@ -19,28 +23,29 @@ def get_counts_word(word):
 
     """
     node = graph.run("MATCH (n {word: '" + word + "'})return n")
+    node = graph.run("MATCH (n {{{}: '{}'}})return n".format(WORD_LABEL, word))
     for x in node:
         for y in x:
             return (y['pos_count'], y['neg_count'])
 
 
-def get_sentiment_sentence(sentence):
-    """
-    Calculates Sentiment of Sentence by averaging for each word: Positive / Total , then the average for
-    all words in sentence is the sentiment.
+# def get_sentiment_sentence(sentence):
+#     """
+#     Calculates Sentiment of Sentence by averaging for each word: Positive / Total , then the average for
+#     all words in sentence is the sentiment.
 
-    """
-    average_sentiment_words = []
-    for x in sentence.split():
-        word_tup = get_counts_word(x.lower())
-        if word_tup is None:
-            print(x + ' is not in the graph')
-        else:
-            word_positive = float(
-                word_tup[0]) / (float(word_tup[0]) + float(word_tup[1]))
-            print(word_positive)
-            average_sentiment_words.append(word_positive)
-    return sum(average_sentiment_words) / len(average_sentiment_words)
+#     """
+#     average_sentiment_words = []
+#     for x in sentence.split():
+#         word_tup = get_counts_word(x.lower())
+#         if word_tup is None:
+#             print(x + ' is not in the graph')
+#         else:
+#             word_positive = float(
+#                 word_tup[0]) / (float(word_tup[0]) + float(word_tup[1]))
+#             print(word_positive)
+#             average_sentiment_words.append(word_positive)
+#     return sum(average_sentiment_words) / len(average_sentiment_words)
 
 
 def get_sentiment_sentence(line):
@@ -64,13 +69,13 @@ def get_next_words(last_word, is_positive):
         most_positive_word = ''
 
         node = graph.run(
-            "MATCH (n {word: '" + last_word + "'}) - [r] -> (x) return x order by r.pos_count desc limit 3")
+            "MATCH (n {{{}:'{}'}}) - [r] -> (x) return x order by r.{} desc limit 3".format(WORD_LABEL, last_word, RELATIONSHIP_POS_LABEL))
         for x in node:
             for y in x:
                 predictions.append(y['word'])
     else:
         node = graph.run(
-            "MATCH (n {word: '" + last_word + "'}) - [r] -> (x) return x order by r.neg_count desc limit 3")
+            "MATCH (n {{{}:'{}'}}) - [r] -> (x) return x order by r.{} desc limit 3".format(WORD_LABEL, last_word, RELATIONSHIP_NEG_LABEL))
         for x in node:
             for y in x:
                 predictions.append(y['word'])
@@ -86,9 +91,9 @@ def parse_input(*args):
     input = v1.get()
     words = input.split()
 
-    if get_sentiment_sentence(input) == 'Positive':
+    if get_sentiment_sentence(input) == 'Positive' and len(words) > 0:
         get_next_words(words[-1], 1)
-    else:
+    elif len(words) > 0:
         get_next_words(words[-1], 0)
 
 
