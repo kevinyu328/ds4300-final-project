@@ -2,11 +2,17 @@ from py2neo import GraphService
 from textblob import TextBlob
 import tkinter as tk
 
+# URL of your NEO4j server
 NEO4J_SERVER_LINK = 'http://localhost:7474/db/data/'
+# username used to login to your NEO4j
 NEO4J_USERNAME = 'neo4j'
+# password used to login to your NEO4j
 NEO4J_PASSWORD = 'neo4jj'
+# label used for the word1/word2 field for each node in NEO4j
 WORD_LABEL = 'word'
+# label used for the positive field in each relationship
 RELATIONSHIP_POS_LABEL = 'pos_count'
+# label used for the negative field in each relationship
 RELATIONSHIP_NEG_LABEL = 'neg_count'
 
 gs = GraphService(NEO4J_SERVER_LINK,
@@ -14,7 +20,10 @@ gs = GraphService(NEO4J_SERVER_LINK,
 graph = gs.default_graph
 
 window = tk.Tk()
+window.title('NLP with Neo4J')
+window.geometry('900x400')
 suggestions = tk.Label(master=window, text='')
+sentiment = tk.Label(master=window, text='')
 
 
 def get_counts_word(word):
@@ -29,27 +38,9 @@ def get_counts_word(word):
             return (y['pos_count'], y['neg_count'])
 
 
-# def get_sentiment_sentence(sentence):
-#     """
-#     Calculates Sentiment of Sentence by averaging for each word: Positive / Total , then the average for
-#     all words in sentence is the sentiment.
-
-#     """
-#     average_sentiment_words = []
-#     for x in sentence.split():
-#         word_tup = get_counts_word(x.lower())
-#         if word_tup is None:
-#             print(x + ' is not in the graph')
-#         else:
-#             word_positive = float(
-#                 word_tup[0]) / (float(word_tup[0]) + float(word_tup[1]))
-#             print(word_positive)
-#             average_sentiment_words.append(word_positive)
-#     return sum(average_sentiment_words) / len(average_sentiment_words)
-
-
 def get_sentiment_sentence(line):
     res = TextBlob(line)
+    sentiment["text"] = str(res.sentiment.polarity)[:5]
     if res.sentiment.polarity >= 0:
         return "Positive"
     else:
@@ -99,11 +90,17 @@ def parse_input(*args):
 
 v1 = tk.StringVar()
 label = tk.Label(text="Enter your sentence here:")
-entry = tk.Entry(window, textvariable=v1)
+sentimentLabel = tk.Label(text="Current sentiment:")
+sentimentHelpLabel = tk.Label(wraplength=650, justify="center",
+                              text="""*Note: sentiment values are between -1 and 1. Values less than 0 denote a negative sentiment and values greater than or equal to 0 denote a positive sentiment. The closer the value is to -1, the a more negative sentiment is and the closer the value is to 1, the more positive the sentiment. """)
+entry = tk.Entry(window, textvariable=v1, width=50)
 v1.trace_add("write", parse_input)
 
-label.pack()
-entry.pack()
-suggestions.pack()
+label.place(relx=0.5, rely=0.3, anchor=tk.CENTER)
+entry.place(relx=0.5, rely=0.4, anchor=tk.CENTER)
+suggestions.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+sentimentLabel.place(relx=0.45, rely=0.65, anchor=tk.CENTER)
+sentiment.place(relx=0.55, rely=0.65, anchor=tk.CENTER)
+sentimentHelpLabel.place(relx=0.5, rely=0.9, anchor=tk.CENTER)
 
 window.mainloop()
